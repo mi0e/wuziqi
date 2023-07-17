@@ -1,8 +1,15 @@
 import { GameObject } from '@/assets/scripts/GameObject'
+import { Pieces } from '@/assets/scripts/Pieces'
+import { time } from 'eslint/lib/linter/timing'
 
 export class GameMap extends GameObject {
   constructor (ctx, parent) {
     super()
+
+    this.currentUser = 1
+
+    this.dx = [-1, 0, 1, 0, -1, -1, 1, 1]
+    this.dy = [0, 1, 0, -1, -1, 1, 1, -1]
 
     this.ctx = ctx // 画布
     this.parent = parent
@@ -10,18 +17,54 @@ export class GameMap extends GameObject {
     this.L = 0 // 单元格边长
     this.cols = 14 // 地图列
     this.rows = 14 // 地图行
+
+    this.map = new Array(this.cols) // 地图
+
+    for (let i = 0; i < this.cols; i++) {
+      this.map[i] = new Array(this.rows)
+    }
+
+    for (let i = 0; i < this.cols; i++) {
+      for (let j = 0; j < this.rows; j++) {
+        this.map[i][j] = 0
+      }
+    }
+
+    this.pieces = [
+      new Pieces({id: 1, color: 'white'}, this),
+      new Pieces({id: 2, color: 'black'}, this),
+    ]
   }
 
   start () {
     this.addListeningEvent()
   }
 
-  addListeningEvent () {
-    this.ctx.addEventListener('click', (e) => {
-      const x = e.offsetX
-      const y = e.offsetY
-      console.log('Mouse click at:', this.findNearestPoint(x, y))
-    })
+
+  addListeningEvent() {
+    // 定义点击事件处理函数
+    const clickHandler = (e) => {
+      const x = e.offsetX;
+      const y = e.offsetY;
+      const nearestPoint = this.findNearestPoint(x, y);
+      if (this.currentUser === 1 && this.map[nearestPoint.x][nearestPoint.y] === 0) {
+        this.map[nearestPoint.x][nearestPoint.y] = 1;
+        this.currentUser = 2;
+      } else if (this.currentUser === 2 && this.map[nearestPoint.x][nearestPoint.y] === 0) {
+        this.map[nearestPoint.x][nearestPoint.y] = 2;
+        this.currentUser = 1;
+      }
+
+      if (this.checkGameOver(nearestPoint.x, nearestPoint.y)) {
+        setTimeout(() => {
+          alert('游戏结束');
+          this.ctx.removeEventListener('click', clickHandler);
+        }, 100);
+      }
+    };
+
+    // 添加点击事件监听器
+    this.ctx.addEventListener('click', clickHandler);
   }
 
   // 找到最近的格子,欧几里得距离
@@ -100,6 +143,22 @@ export class GameMap extends GameObject {
     ctx.beginPath()
     ctx.arc(11 * this.L, 3 * this.L, 5, 0, Math.PI * 2)
     ctx.fill()
+  }
+
+  checkGameOver (x, y) {
+    for (let i = 0; i < 8; i++) {
+      let tx = x + this.dx[i]
+      let ty = y + this.dy[i]
+      let cnt = 0
+      while (tx >= 0 && tx < this.cols && ty >= 0 && ty < this.rows
+        && this.map[tx][ty] === this.map[x][y] && this.map[tx][ty] !== 0) {
+          cnt++
+          tx += this.dx[i]
+          ty += this.dy[i]
+          if (cnt >= 4) return true
+      }
+    }
+    return false
   }
 
   update () {
